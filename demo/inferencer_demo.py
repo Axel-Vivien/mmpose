@@ -1,6 +1,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from argparse import ArgumentParser
 from typing import Dict
+import json
+import cv2
+import os
 
 from mmpose.apis.inferencers import MMPoseInferencer, get_model_aliases
 
@@ -216,6 +219,59 @@ def main():
         inferencer = MMPoseInferencer(**init_args)
         for _ in inferencer(**call_args):
             pass
+    # add information about the video to the json
+    pre, ext = os.path.splitext(args.inputs)
+    json_filepath = pre + '.json'
+    try:
+        # Read the JSON file
+        with open(json_filepath, 'r') as f:
+            data = json.load(f)
+    
+        # Get video properties
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Error: Could not open video file at {video_path}")
+        else:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+    
+            # Add video properties to the JSON data
+            # Assuming the JSON structure is a list of frames,
+            # we can add a new entry or modify an existing one
+            # Let's add a new dictionary with video info at the beginning
+            video_info = {
+                "video_properties": {
+                    "frame_count": frame_count,
+                    "frame_width": frame_width,
+                    "frame_height": frame_height
+                }
+            }
+    
+            # If data is a list, prepend the video info
+            if isinstance(data, list):
+                data.insert(0, video_info)
+            # If data is a dictionary, add video info as a new key
+            elif isinstance(data, dict):
+                data["video_properties"] = video_info["video_properties"]
+            else:
+                print("Warning: JSON data is neither a list nor a dictionary. Cannot add video properties.")
+                # Optionally, handle other data types or raise an error
+    
+            # Write the modified data back to the JSON file
+            with open(json_filepath, 'w') as f:
+                json.dump(data, f, indent=4)
+    
+            print(f"Successfully added video properties to {json_filepath}")
+            print(f"Frame Count: {frame_count}, Width: {frame_width}, Height: {frame_height}")
+    
+    except FileNotFoundError:
+        print(f"Error: JSON file not found at {json_filepath}")
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {json_filepath}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 if __name__ == '__main__':
