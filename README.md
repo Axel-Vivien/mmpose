@@ -21,6 +21,8 @@ cd ..
 # force install numpy 1.x and reboot
 pip uninstall -y numpy
 pip install numpy==1.*
+```
+```python
 import os
 os.kill(os.getpid(), 9)
 ```
