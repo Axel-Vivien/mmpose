@@ -1,3 +1,28 @@
+# Install on colab
+
+```bash
+pip3 install openmim
+mim install mmengine
+pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu121
+mim install "mmcv==2.1.0" -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.1.0/index.htm
+
+# install MMPOSE
+!git clone https://github.com/open-mmlab/mmpose.git
+%cd mmpose
+!pip install -e .
+
+# install MMDET
+!git clone https://github.com/open-mmlab/mmdetection.git
+%cd mmdetection
+!pip install -e .
+
+# force install numpy 1.x and reboot
+!pip uninstall -y numpy
+!pip install numpy==1.*
+import os
+os.kill(os.getpid(), 9)
+```
+
 <div align="center">
   <img src="resources/mmpose-logo.png" width="450"/>
   <div>&nbsp;</div>
