@@ -196,7 +196,11 @@ def parse_args():
         init_args[init_kw] = call_args.pop(init_kw)
 
     display_alias = call_args.pop('show_alias')
-
+    
+    # hard-coded values
+    call_args['pred_out_dir'] = "/".join(call_args['inputs'].split("/")[:-1])
+    init_args['pose2d'] = "rtmw-x_8xb320-270e_cocktail14-384x288"
+ 
     return init_args, call_args, display_alias
 
 
@@ -220,7 +224,7 @@ def main():
         for _ in inferencer(**call_args):
             pass
     # add information about the video to the json
-    pre, ext = os.path.splitext(args.inputs)
+    pre, ext = os.path.splitext(call_args['inputs'])
     json_filepath = pre + '.json'
     try:
         # Read the JSON file
@@ -235,6 +239,7 @@ def main():
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            frame_rate = cap.get(cv2.CAP_PROP_FPS)
             cap.release()
     
             # Add video properties to the JSON data
@@ -245,7 +250,8 @@ def main():
                 "video_properties": {
                     "frame_count": frame_count,
                     "frame_width": frame_width,
-                    "frame_height": frame_height
+                    "frame_height": frame_height,
+                    "frame_rate": frame_rate,
                 }
             }
     
