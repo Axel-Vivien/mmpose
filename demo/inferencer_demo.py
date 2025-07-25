@@ -224,7 +224,8 @@ def main():
         for _ in inferencer(**call_args):
             pass
     # add information about the video to the json
-    pre, ext = os.path.splitext(call_args['inputs'])
+    video_path = call_args['inputs']
+    pre, ext = os.path.splitext(video_path)
     json_filepath = pre + '.json'
     try:
         # Read the JSON file
