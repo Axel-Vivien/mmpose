@@ -3,7 +3,7 @@ set -e
 
 # Variables
 AMI_ID="ami-07ad00b928ed9503b"
-KEY_NAME="axel"
+KEY_NAME="tanguy"
 INSTANCE_TYPE="g6.2xlarge"
 REGION="us-east-1"
 
@@ -32,14 +32,14 @@ for i in {1..8}; do
     # Format batch number with leading zero
     BATCH_NUM=$(printf "%02d" $i)
     
-    echo "Launching instance $i/10 for batch $BATCH_NUM..."
+    echo "Launching instance $i/8 for batch $BATCH_NUM..."
     
     # Create user data script to execute the command at startup
     USER_DATA=$(cat << EOF
 #!/bin/bash
 cd /home/ec2-user
 rm .aws/config
-./mmpose/launch_inferencer.sh --json-file s3://veesion-data-reinit-research/axel/true_positive_batches/true_positive_batch_${BATCH_NUM}_of_10.json --limit 1000 --shutdown
+./mmpose/launch_inferencer.sh --json-file s3://veesion-data-reinit-research/axel/all_batches_no_unbiased/video_batch_no_unbiased_${BATCH_NUM}_of_08.json --limit 17500 --shutdown
 EOF
 )
     echo "$USER_DATA"
