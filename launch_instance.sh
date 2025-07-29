@@ -39,7 +39,7 @@ for i in {1..8}; do
 #!/bin/bash
 cd /home/ec2-user
 rm .aws/config
-./mmpose/launch_inferencer.sh --json-file s3://veesion-data-reinit-research/axel/all_batches_no_unbiased/video_batch_no_unbiased_${BATCH_NUM}_of_08.json --limit 17500 --shutdown
+./mmpose/launch_inferencer.sh --json-file s3://veesion-data-reinit-research/axel/all_batches_no_unbiased/video_batch_no_unbiased_${BATCH_NUM}_of_08.json --limit 17500 --s3-results-prefix axel/ffmpose_results/no_unbiased/ --shutdown
 EOF
 )
     echo "$USER_DATA"

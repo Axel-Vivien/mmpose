@@ -129,14 +129,14 @@ def calculate_fps(frame_count, processing_time):
 
 
 def process_video_worker(worker_info):
-    video_item, init_args, call_args_template, process_id = worker_info
+    video_item, init_args, call_args_template, process_id, s3_results_prefix = worker_info
     
     try:
         is_on_demand = isinstance(video_item, tuple)
         inferencer = MMPoseInferencer(**init_args)
         
         if is_on_demand:
-            perf_data = process_single_video_on_demand(video_item, inferencer, call_args_template)
+            perf_data = process_single_video_on_demand(video_item, inferencer, call_args_template, s3_results_prefix)
         else:
             perf_data = process_single_video(video_item, inferencer, call_args_template, None)
         
@@ -154,11 +154,11 @@ def process_video_worker(worker_info):
         }
 
 
-def process_videos_parallel(video_tasks, init_args, call_args, num_processes):
+def process_videos_parallel(video_tasks, init_args, call_args, num_processes, s3_results_prefix):
     work_items = []
     for i, video_item in enumerate(video_tasks):
         process_id = (i % num_processes) + 1
-        work_items.append((video_item, init_args, call_args, process_id))
+        work_items.append((video_item, init_args, call_args, process_id, s3_results_prefix))
     
     with mp.Pool(processes=num_processes) as pool:
         try:
@@ -169,14 +169,14 @@ def process_videos_parallel(video_tasks, init_args, call_args, num_processes):
             return []
 
 
-def process_videos_sequential(video_tasks, init_args, call_args):
+def process_videos_sequential(video_tasks, init_args, call_args, s3_results_prefix):
     inferencer = MMPoseInferencer(**init_args)
     all_performance_data = []
     is_on_demand = len(video_tasks) > 0 and isinstance(video_tasks[0], tuple)
     
     for video_item in video_tasks:
         if is_on_demand:
-            perf_data = process_single_video_on_demand(video_item, inferencer, call_args)
+            perf_data = process_single_video_on_demand(video_item, inferencer, call_args, s3_results_prefix)
         else:
             perf_data = process_single_video(video_item, inferencer, call_args, None)
         
@@ -382,6 +382,11 @@ def parse_args():
         type=str,
         default='./downloaded_videos',
         help='Directory to download videos from S3.')
+    parser.add_argument(
+        '--s3-results-prefix',
+        type=str,
+        default='axel2/ffmpose_results/data-sample_2025-06-02',
+        help='S3 prefix for uploading result files.')
 
     call_args = vars(parser.parse_args())
 
@@ -402,11 +407,12 @@ def parse_args():
     category = call_args.pop('category')
     limit = call_args.pop('limit')
     download_dir = call_args.pop('download_dir')
+    s3_results_prefix = call_args.pop('s3_results_prefix')
     
     # hard-coded values
     init_args['pose2d'] = "rtmw-x_8xb320-270e_cocktail14-384x288"
  
-    return init_args, call_args, display_alias, num_processes, json_file, category, limit, download_dir
+    return init_args, call_args, display_alias, num_processes, json_file, category, limit, download_dir, s3_results_prefix
 
 
 def display_model_aliases(model_aliases: Dict[str, str]) -> None:
@@ -457,7 +463,7 @@ def get_video_files(input_path):
         return []
 
 
-def process_single_video_on_demand(video_task, inferencer, call_args_template):
+def process_single_video_on_demand(video_task, inferencer, call_args_template, s3_results_prefix):
     s3_path, local_temp_path, video_metadata = video_task
     video_filename = os.path.basename(local_temp_path)
     
@@ -494,7 +500,7 @@ def process_single_video_on_demand(video_task, inferencer, call_args_template):
     
     # Initialize upload tracking
     upload_success = False
-    s3_results_key = f"axel/ffmpose_results/data-sample_2025-06-02/{json_filename}"
+    s3_results_key = f"{s3_results_prefix}/{json_filename}"
     
     # Add metadata to the result JSON file and upload to S3
     if os.path.exists(json_path):
@@ -702,7 +708,7 @@ def add_video_properties_to_json(video_path, metadata=None, video_properties=Non
 
 
 def main():
-    init_args, call_args, display_alias, num_processes, json_file, category, limit, download_dir = parse_args()
+    init_args, call_args, display_alias, num_processes, json_file, category, limit, download_dir, s3_results_prefix = parse_args()
     if display_alias:
         model_alises = get_model_aliases(init_args['scope'])
         display_model_aliases(model_alises)
@@ -726,9 +732,9 @@ def main():
         num_processes = max_processes
     
     if num_processes > 1:
-        all_performance_data = process_videos_parallel(video_tasks, init_args, call_args, num_processes)
+        all_performance_data = process_videos_parallel(video_tasks, init_args, call_args, num_processes, s3_results_prefix)
     else:
-        all_performance_data = process_videos_sequential(video_tasks, init_args, call_args)
+        all_performance_data = process_videos_sequential(video_tasks, init_args, call_args, s3_results_prefix)
     
     all_performance_data = [data for data in all_performance_data if data is not None]
     

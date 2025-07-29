@@ -8,20 +8,24 @@ set -e  # Exit on any error
 # Default values
 JSON_FILE=""
 LIMIT=""
+S3_RESULTS_PREFIX=""
 SHUTDOWN=false
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 --json-file <path> --limit <number> [--shutdown]"
+    echo "Usage: $0 --json-file <path> [--limit <number>] [--s3-results-prefix <prefix>] [--shutdown]"
     echo ""
     echo "Options:"
-    echo "  --json-file <path>    Path to the JSON file containing video data"
-    echo "  --limit <number>      Maximum number of videos to process"
-    echo "  --shutdown           Shutdown the instance after processing (optional)"
-    echo "  -h, --help           Display this help message"
+    echo "  --json-file <path>            Path to the JSON file containing video data (required)"
+    echo "  --limit <number>              Maximum number of videos to process (optional)"
+    echo "  --s3-results-prefix <prefix>  S3 prefix for uploading result files (optional)"
+    echo "  --shutdown                   Shutdown the instance after processing (optional)"
+    echo "  -h, --help                   Display this help message"
     echo ""
-    echo "Example:"
-    echo "  $0 --json-file s3://bucket/data.json --limit 100 --shutdown"
+    echo "Examples:"
+    echo "  $0 --json-file s3://bucket/data.json"
+    echo "  $0 --json-file s3://bucket/data.json --limit 100"
+    echo "  $0 --json-file s3://bucket/data.json --limit 100 --s3-results-prefix custom/prefix --shutdown"
     exit 1
 }
 
@@ -34,6 +38,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --limit)
             LIMIT="$2"
+            shift 2
+            ;;
+        --s3-results-prefix)
+            S3_RESULTS_PREFIX="$2"
             shift 2
             ;;
         --shutdown)
@@ -56,13 +64,8 @@ if [[ -z "$JSON_FILE" ]]; then
     usage
 fi
 
-if [[ -z "$LIMIT" ]]; then
-    echo "Error: --limit is required"
-    usage
-fi
-
-# Validate limit is a number
-if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
+# Validate limit is a number (only if provided)
+if [[ -n "$LIMIT" ]] && ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
     echo "Error: --limit must be a positive integer"
     exit 1
 fi
@@ -71,7 +74,16 @@ echo "=========================================="
 echo "MMPose Inferencer Demo Launcher"
 echo "=========================================="
 echo "JSON File: $JSON_FILE"
-echo "Limit: $LIMIT"
+if [[ -n "$LIMIT" ]]; then
+    echo "Limit: $LIMIT"
+else
+    echo "Limit: not specified (will process all videos)"
+fi
+if [[ -n "$S3_RESULTS_PREFIX" ]]; then
+    echo "S3 Results Prefix: $S3_RESULTS_PREFIX"
+else
+    echo "S3 Results Prefix: using default"
+fi
 echo "Shutdown after completion: $SHUTDOWN"
 echo "=========================================="
 
@@ -107,7 +119,20 @@ echo "Starting processing at: $START_TIME"
 
 # Run the inferencer demo
 echo "Launching MMPose inferencer demo..."
-python demo/inferencer_demo.py --json-file "$JSON_FILE" --limit "$LIMIT"
+
+# Build the command with optional parameters
+PYTHON_CMD="python demo/inferencer_demo.py --json-file \"$JSON_FILE\""
+
+if [[ -n "$LIMIT" ]]; then
+    PYTHON_CMD="$PYTHON_CMD --limit \"$LIMIT\""
+fi
+
+if [[ -n "$S3_RESULTS_PREFIX" ]]; then
+    PYTHON_CMD="$PYTHON_CMD --s3-results-prefix \"$S3_RESULTS_PREFIX\""
+fi
+
+# Execute the command
+eval $PYTHON_CMD
 
 # Record end time
 END_TIME=$(date)
